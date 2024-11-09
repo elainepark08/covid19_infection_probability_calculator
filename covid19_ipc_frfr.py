@@ -1,28 +1,56 @@
 import streamlit as st
+import numpy as np
+from scipy.integrate import odeint
 
-st.set_page_config(
-    page_title="Hello",
-    page_icon="👋",
-)
+# SEIR 모델 함수 정의
+def seir_model(y, t, N, beta, sigma, gamma):
+    S, E, I, R = y
+    dSdt = -beta * S * I / N
+    dEdt = beta * S * I / N - sigma * E
+    dIdt = sigma * E - gamma * I
+    dRdt = gamma * I
+    return [dSdt, dEdt, dIdt, dRdt]
 
-st.write("# Welcome to Streamlit! 👋")
+# 감염 확률 계산 함수
+def calculate_infection_probability(age, vaccinated, previously_infected):
+    base_beta = 0.3  # 기본 감염률
+    if age >= 60:
+        beta = base_beta * 1.2
+    elif age <= 18:
+        beta = base_beta * 0.8
+    else:
+        beta = base_beta
 
-st.sidebar.success("Select a demo above.")
+    if vaccinated == "접종 완료":
+        beta *= 0.5
+    if previously_infected == "예":
+        beta *= 0.7
 
-st.markdown(
-    """
-    Streamlit is an open-source app framework built specifically for
-    Machine Learning and Data Science projects.
-    **👈 Select a demo from the sidebar** to see some examples
-    of what Streamlit can do!
-    ### Want to learn more?
-    - Check out [streamlit.io](https://streamlit.io)
-    - Jump into our [documentation](https://docs.streamlit.io)
-    - Ask a question in our [community
-        forums](https://discuss.streamlit.io)
-    ### See more complex demos
-    - Use a neural net to [analyze the Udacity Self-driving Car Image
-        Dataset](https://github.com/streamlit/demo-self-driving)
-    - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-"""
-)
+    N = 10000
+    sigma = 1/5.2
+    gamma = 1/14
+    S0, E0, I0, R0 = N - 1, 1, 0, 0
+    initial_state = [S0, E0, I0, R0]
+    t = np.linspace(0, 160, 160)
+
+    result = odeint(seir_model, initial_state, t, args=(N, beta, sigma, gamma))
+    S, E, I, R = result.T
+
+    final_infected_ratio = I[-1] / N
+    infection_probability = min(final_infected_ratio * 100, 100)
+
+    return infection_probability
+
+# Streamlit 앱 UI 구성
+st.title("코로나 바이러스 감염 확률 예측")
+st.write("사용자의 연령, 백신 접종 여부, 이전 감염 여부를 기반으로 감염 확률을 예측합니다.")
+
+# 사용자 입력
+age = st.slider("연령대", 0, 100, 30)
+vaccinated = st.selectbox("백신 접종 여부", ["미접종", "접종 완료"])
+previously_infected = st.selectbox("이전 감염 여부", ["아니오", "예"])
+
+# 버튼 클릭 시 감염 확률 계산
+if st.button("감염 확률 계산"):
+    probability = calculate_infection_probability(age, vaccinated, previously_infected)
+    st.write(f"코로나 바이러스에 감염될 확률은 {probability:.2f}%입니다.")
