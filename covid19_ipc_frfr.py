@@ -66,7 +66,13 @@ if vaccinated == "접종 완료":
 
 previously_infected_count = st.selectbox("이전 감염 횟수", ["감염되지 않음", "1회 감염", "2회 이상 감염"])
 
-# 버튼 클릭 시 감염 확률 계산
+# 감염 확률 계산 버튼 클릭 시
 if st.button("감염 확률 계산"):
-    probability = calculate_infection_probability(age, vaccinated == "접종 완료", vaccine_type, dose_count, previously_infected_count)
+    probability = calculate_infection_probability(
+        age, 
+        vaccinated == "접종 완료", 
+        vaccine_type,         
+        dose_count,           
+        previously_infected_count  
+    )
     st.write(f"코로나 바이러스에 감염될 확률은 {probability:.2f}%입니다.")
