@@ -1,6 +1,10 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 import numpy as np
 from scipy.integrate import odeint
+
+# 주기적으로 새로고침 설정 (예: 5분마다 새로고침)
+st_autorefresh(interval=5 * 60 * 1000)
 
 # SEIR 모델 함수 정의
 def seir_model(y, t, N, beta, sigma, gamma):
