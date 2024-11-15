@@ -14,6 +14,8 @@ def seir_model(y, t, N, beta, sigma, gamma):
 # 감염 확률 계산 함수
 def calculate_infection_probability(age, vaccinated, vaccine_type, dose_count, previously_infected_count):
     base_beta = 0.3  # 기본 감염률
+    
+    # 연령에 따른 감염률 조정
     if age >= 60:
         beta = base_beta * 1.2
     elif age <= 18:
@@ -21,17 +23,23 @@ def calculate_infection_probability(age, vaccinated, vaccine_type, dose_count, p
     else:
         beta = base_beta
 
-    # 백신 종류에 따른 감염률 조정
+    # 백신 접종 여부 및 종류에 따른 감염률 조정
     if vaccinated == "접종 완료":
-        if vaccine_type == "화이자":
+        if dose_count == "3차 이상":
             beta *= 0.5
-        elif vaccine_type == "모더나":
-            beta *= 0.55
-        elif vaccine_type == "아스트라제네카":
+        elif dose_count == "2차":
             beta *= 0.6
+        else:  # "1차"
+            beta *= 0.75
 
-    # 백신 접종 횟수에 따른 감염률 조정
-    beta *= 0.6 if dose_count >= 2 else 0.75
+        if vaccine_type == "화이자":
+            beta *= 0.9
+        elif vaccine_type == "모더나":
+            beta *= 0.85
+        elif vaccine_type == "아스트라제네카":
+            beta *= 1.0
+        else:  # "기타"
+            beta *= 1.1
 
     # 이전 감염 여부에 따른 감염률 조정
     if previously_infected_count == "1회 감염":
@@ -39,16 +47,19 @@ def calculate_infection_probability(age, vaccinated, vaccine_type, dose_count, p
     elif previously_infected_count == "2회 이상 감염":
         beta *= 0.5
 
-    N = 10000  # 전체 인구수
-    sigma = 1 / 5.2  # 잠복기 평균
-    gamma = 1 / 14  # 회복기 평균
-    S0, E0, I0, R0 = N - 1, 1, 0, 0  # 초기 상태
+    # SEIR 모델 초기값 설정
+    N = 10000
+    sigma = 1/5.2
+    gamma = 1/14
+    S0, E0, I0, R0 = N - 1, 1, 0, 0
     initial_state = [S0, E0, I0, R0]
-    t = np.linspace(0, 160, 160)  # 시간 설정
+    t = np.linspace(0, 160, 160)
 
+    # SEIR 모델 계산
     result = odeint(seir_model, initial_state, t, args=(N, beta, sigma, gamma))
     S, E, I, R = result.T
 
+    # 최종 감염 확률 계산
     final_infected_ratio = I[-1] / N
     infection_probability = min(final_infected_ratio * 100, 100)
 
@@ -56,32 +67,27 @@ def calculate_infection_probability(age, vaccinated, vaccine_type, dose_count, p
 
 # Streamlit 앱 UI 구성
 st.title("코로나 바이러스 감염 확률 예측")
-st.write("사용자의 연령, 백신 접종 여부, 백신 종류, 접종 횟수, 이전 감염 여부를 기반으로 감염 확률을 예측합니다.")
+st.write("사용자의 연령, 백신 접종 여부, 이전 감염 여부를 기반으로 감염 확률을 예측합니다.")
 
 # 사용자 입력
 age = st.slider("연령대", 0, 100, 30)  # 연령대 선택
 vaccinated = st.selectbox("백신 접종 여부", ["미접종", "접종 완료"])  # 백신 접종 여부 선택
-vaccine_type = st.selectbox("백신 종류", ["화이자", "모더나", "아스트라제네카", "기타"])  # 백신 종류 선택
-dose_count = st.selectbox("백신 접종 횟수", ["미접종", "1차", "2차", "3차 이상"])  # 백신 접종 횟수 선택
+
+# '접종 완료'를 선택한 경우에만 추가 선택지 표시
+if vaccinated == "접종 완료":
+    vaccine_type = st.selectbox("백신 종류", ["화이자", "모더나", "아스트라제네카", "기타"])  # 백신 종류 선택
+    dose_count = st.selectbox("백신 접종 횟수", ["1차", "2차", "3차 이상"])  # 백신 접종 횟수 선택
+else:
+    # '미접종'인 경우 기본값으로 설정
+    vaccine_type = "없음"
+    dose_count = 0  # 접종 횟수 없음
+
+# 이전 감염 여부 입력
 previously_infected_count = st.selectbox("이전 감염 여부", ["감염되지 않음", "1회 감염", "2회 이상 감염"])  # 이전 감염 여부 선택
 
-# 백신 접종 횟수 값을 숫자로 변환
-if dose_count == "미접종":
-    dose_count = 0
-elif dose_count == "1차":
-    dose_count = 1
-elif dose_count == "2차":
-    dose_count = 2
-else:
-    dose_count = 3
-
-# 감염 확률 계산 버튼 클릭 시
+# 버튼 클릭 시 감염 확률 계산
 if st.button("감염 확률 계산"):
     probability = calculate_infection_probability(
-        age, 
-        vaccinated == "접종 완료", 
-        vaccine_type, 
-        dose_count, 
-        previously_infected_count
+        age, vaccinated, vaccine_type, dose_count, previously_infected_count
     )
     st.write(f"코로나 바이러스에 감염될 확률은 {probability:.2f}%입니다.")
